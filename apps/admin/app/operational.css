@@ -1,0 +1,60 @@
+/* The final visual layer for the compliance console. */
+body {
+  background: #f6f7f4;
+}
+
+.admin-sidebar {
+  background: #edf2e9;
+}
+
+.admin-brand-mark {
+  border-radius: 8px;
+  background: #153f3a;
+}
+
+.admin-nav a:hover,
+.admin-nav a[aria-current='page'] {
+  box-shadow: none;
+}
+
+.admin-topbar {
+  background: #fff;
+  backdrop-filter: none;
+}
+
+.admin-content > h1,
+.review-heading h1,
+.admin-login-story h1,
+.admin-login-card h1 {
+  font-family: inherit;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.admin-card,
+.admin-table-wrap,
+.review-card,
+.review-actions,
+.admin-empty {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.admin-button,
+.admin-login-card button[type='submit'] {
+  background: #145c4f;
+  box-shadow: none;
+}
+
+.admin-login-story {
+  background: #eaf0e6;
+}
+
+.admin-login-panel {
+  background: #fff;
+}
+
+.admin-login-card {
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(20, 55, 44, 0.06);
+}

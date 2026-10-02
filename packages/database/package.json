@@ -1,0 +1,43 @@
+{
+  "name": "@ligimed/database",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true});require('node:fs').rmSync('generated',{recursive:true,force:true})\"",
+    "db:diff": "prisma migrate diff --from-empty --to-schema ../../database/prisma/schema.prisma --script",
+    "db:generate": "prisma generate --config ../../prisma.config.ts",
+    "db:migrate": "prisma migrate dev --config ../../prisma.config.ts",
+    "db:deploy": "prisma migrate deploy --config ../../prisma.config.ts",
+    "db:reset": "prisma migrate reset --config ../../prisma.config.ts",
+    "db:seed": "node --env-file=../../.env --import tsx src/seed.ts",
+    "demo:seed": "node --env-file=../../.env --import tsx src/seed-demo-accounts.ts",
+    "db:validate": "prisma validate --config ../../prisma.config.ts",
+    "lint": "eslint .",
+    "test": "vitest run --config ../../vitest.unit.config.ts --passWithNoTests",
+    "test:coverage": "vitest run --config ../../vitest.unit.config.ts --coverage --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@ligimed/auth": "workspace:*",
+    "@ligimed/types": "workspace:*",
+    "@ligimed/validation": "workspace:*",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "prisma": "7.10.0",
+    "tsx": "4.23.15"
+  }
+}

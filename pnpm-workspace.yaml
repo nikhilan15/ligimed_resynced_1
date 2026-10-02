@@ -1,0 +1,17 @@
+packages:
+  - apps/*
+  - services/*
+  - packages/*
+
+allowBuilds:
+  '@prisma/engines': true
+  esbuild: true
+  prisma: true
+
+confirmModulesPurge: false
+
+# Fail clearly instead of starting an implicit install while scripts are running.
+verifyDepsBeforeRun: error
+
+minimumReleaseAgeExclude:
+  - tsx@4.23.15

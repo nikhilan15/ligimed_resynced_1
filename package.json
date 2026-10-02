@@ -1,0 +1,50 @@
+{
+  "name": "ligimed",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LigiMed pharmaceutical supply-chain platform",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=24.11.0 <25",
+    "pnpm": ">=11.19.0 <12"
+  },
+  "scripts": {
+    "auth:otp": "node infrastructure/scripts/read-dev-otp.mjs",
+    "admin:provision": "node --env-file=.env node_modules/tsx/dist/cli.mjs packages/database/src/provision-admin.ts",
+    "admin:provision:google": "node --env-file=.env node_modules/tsx/dist/cli.mjs packages/database/src/provision-google-admin.ts",
+    "build": "turbo run build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "clean": "turbo run clean",
+    "db:generate": "pnpm --filter @ligimed/database db:generate",
+    "db:migrate": "pnpm --filter @ligimed/database db:migrate",
+    "db:deploy": "pnpm --filter @ligimed/database db:deploy",
+    "db:reset": "pnpm --filter @ligimed/database db:reset",
+    "db:seed": "pnpm --filter @ligimed/database db:seed",
+    "demo:seed": "pnpm --filter @ligimed/database demo:seed",
+    "db:validate": "pnpm --filter @ligimed/database db:validate",
+    "dev": "turbo run dev --parallel",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "test:e2e": "playwright test",
+    "test:integration": "node --env-file=.env node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts",
+    "typecheck": "tsc -p tsconfig.json && turbo run typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.6.2",
+    "eslint": "10.0.1",
+    "prettier": "3.9.8",
+    "prisma": "7.10.0",
+    "tsx": "4.23.15",
+    "turbo": "2.11.2",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.0",
+    "vitest": "5.0.1"
+  }
+}

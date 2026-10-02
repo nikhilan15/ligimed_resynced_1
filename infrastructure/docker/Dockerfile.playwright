@@ -1,0 +1,17 @@
+FROM mcr.microsoft.com/playwright:v1.63.0-noble
+
+WORKDIR /tests
+
+RUN npm init --yes \
+  && npm install --save-exact @playwright/test@1.63.0 \
+  && chown -R pwuser:pwuser /tests
+
+COPY --chown=pwuser:pwuser playwright.config.ts ./playwright.config.ts
+COPY --chown=pwuser:pwuser tests/e2e ./tests/e2e
+
+USER pwuser
+
+ENV E2E_EXTERNAL_SERVERS=true
+ENV E2E_HOST=host.docker.internal
+
+ENTRYPOINT ["npx", "playwright", "test", "--reporter=list"]

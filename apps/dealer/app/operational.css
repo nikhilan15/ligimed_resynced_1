@@ -1,0 +1,81 @@
+/* The final visual layer for the signed-in dealer workspace. */
+body {
+  background: #f6f7f4;
+}
+
+.dealer-header {
+  background: #fff;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+.dealer-brand-mark {
+  border-radius: 8px;
+  background: #153f3a;
+}
+
+.dealer-header nav {
+  background: #f5f7f3;
+}
+
+.dealer-header nav a:hover,
+.dealer-header nav a[aria-current='page'] {
+  padding: 8px 12px;
+  border: 1px solid #dce5da;
+  box-shadow: none;
+}
+
+.account-page,
+.onboarding-layout,
+.catalogue-page,
+.order-page {
+  margin-top: 46px;
+}
+
+.catalogue-page > h1,
+.account-page h1,
+.page-heading h1 {
+  font-family: inherit;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.panel,
+.account-card,
+.status-card,
+.dealer-order-card,
+.catalogue-listing {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.catalogue-search {
+  border-radius: 10px;
+  background: #fff;
+}
+
+button,
+.button-link {
+  background: #145c4f;
+  box-shadow: none;
+}
+
+button:not(:disabled):hover,
+.button-link:hover {
+  transform: none;
+  box-shadow: none;
+  filter: brightness(0.96);
+}
+
+.auth-aside {
+  background: #eaf0e6;
+}
+
+.auth-main {
+  background: #fff;
+}
+
+.auth-card {
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(20, 55, 44, 0.06);
+}

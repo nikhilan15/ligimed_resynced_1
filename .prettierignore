@@ -1,0 +1,11 @@
+.next
+coverage
+test-results
+dist
+generated
+node_modules
+outputs
+pnpm-lock.yaml
+work
+.local/
+apps/*/next-env.d.ts

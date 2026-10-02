@@ -1,0 +1,980 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../../packages/database/generated/prisma"
+  moduleFormat = "esm"
+  runtime      = "nodejs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum IdentityType {
+  PHONE
+  EMAIL
+  GOOGLE
+}
+
+enum OrganizationType {
+  PHARMACY
+  DEALER
+  TRANSPORT
+  LIGIMED_INTERNAL
+}
+
+enum OrganizationStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum OtpPurpose {
+  SIGN_IN
+  VERIFY_PHONE
+  RECOVER_ACCOUNT
+  STEP_UP_AUTH
+}
+
+enum OtpStatus {
+  PENDING
+  VERIFIED
+  EXPIRED
+  LOCKED
+}
+
+enum SessionAssuranceLevel {
+  OTP
+  PASSWORD
+  MFA
+  GOOGLE
+}
+
+enum SessionScope {
+  FULL
+  ONBOARDING
+}
+
+enum PartnerAuthIntent {
+  LOGIN
+  REGISTER
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  PUBLISHED
+  FAILED
+}
+
+enum KycStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+enum KycEvidenceCategory {
+  DRUG_LICENCE
+  GST_REGISTRATION
+  PAN
+  BUSINESS_REGISTRATION
+  BANK_DOCUMENT
+  OTHER
+}
+
+enum KycEvidenceStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  PACKED
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+  REJECTED
+  RETURN_REQUESTED
+  RETURNED
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+  BANK_TRANSFER
+  ONLINE
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum StockMovementType {
+  RECEIPT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  SALE
+  RETURN_IN
+  RETURN_OUT
+  EXPIRED
+}
+
+enum InvoiceType {
+  RETAIL_SALE
+  DEALER_PURCHASE
+}
+
+enum InvoicePaymentEntryType {
+  PAYMENT
+  REFUND
+}
+
+enum InvoicePaymentEntryMethod {
+  CASH
+  BANK_TRANSFER
+  UPI
+  CARD
+  OTHER
+}
+
+model User {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  displayName String?  @db.VarChar(200)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  identities              UserIdentity[]
+  memberships             Membership[]
+  sessions                Session[]
+  auditEvents             AuditLog[]            @relation("AuditActor")
+  createdKycRecords       KycRecord[]           @relation("KycCreatedBy")
+  updatedKycRecords       KycRecord[]           @relation("KycUpdatedBy")
+  reviewedKycRecords      KycRecord[]           @relation("KycReviewedBy")
+  uploadedKycEvidence     KycEvidence[]         @relation("KycEvidenceUploadedBy")
+  placedOrders            Order[]               @relation("OrderPlacedBy")
+  orderStatusChanges      OrderStatusHistory[]  @relation("OrderStatusChangedBy")
+  stockMovements          StockMovement[]       @relation("StockMovementCreatedBy")
+  recordedInvoices        Invoice[]             @relation("InvoiceRecordedBy")
+  recordedInvoicePayments InvoicePaymentEntry[] @relation("InvoicePaymentEntryRecordedBy")
+  createdBillDrafts       RetailBillDraft[]     @relation("BillDraftCreatedBy")
+  updatedBillDrafts       RetailBillDraft[]     @relation("BillDraftUpdatedBy")
+  uploadedDocuments       Document[]            @relation("DocumentUploadedBy")
+  documentReviews         DocumentReview[]      @relation("DocumentReviewedBy")
+
+  @@map("users")
+}
+
+model UserIdentity {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String       @db.Uuid
+  type            IdentityType
+  normalizedValue String       @db.VarChar(320)
+  passwordHash    String?      @db.VarChar(255)
+  verifiedAt      DateTime?    @db.Timestamptz(3)
+  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([type, normalizedValue])
+  @@index([userId])
+  @@map("user_identities")
+}
+
+model Organization {
+  id        String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type      OrganizationType
+  status    OrganizationStatus @default(PENDING)
+  legalName String             @db.VarChar(250)
+  tradeName String?            @db.VarChar(250)
+  slug      String             @unique @db.VarChar(100)
+  country   String             @default("IN") @db.Char(2)
+  createdAt DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(3)
+
+  memberships         Membership[]
+  addresses           Address[]
+  sessions            Session[]
+  auditEvents         AuditLog[]
+  pharmacyProfile     PharmacyProfile?
+  dealerProfile       DealerProfile?
+  dealerPublicProfile DealerPublicProfile?
+  kycRecords          KycRecord[]
+  kycEvidence         KycEvidence[]
+  catalogueItems      DealerCatalogueItem[]
+  pharmacyCart        Cart?                 @relation("PharmacyCart")
+  dealerCarts         Cart[]                @relation("DealerCart")
+  pharmacyOrders      Order[]               @relation("PharmacyOrders")
+  dealerOrders        Order[]               @relation("DealerOrders")
+  inventoryItems      InventoryItem[]
+  customers           Customer[]
+  invoices            Invoice[]             @relation("PharmacyInvoices")
+  dealerInvoices      Invoice[]             @relation("DealerInvoices")
+  retailBillDrafts    RetailBillDraft[]
+  documents           Document[]
+
+  @@index([type, status])
+  @@map("organizations")
+}
+
+model Manufacturer {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @db.VarChar(250)
+  slug      String   @unique @db.VarChar(120)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  products Product[]
+
+  @@map("manufacturers")
+}
+
+model ProductCategory {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @db.VarChar(150)
+  slug      String   @unique @db.VarChar(120)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  products Product[]
+
+  @@map("product_categories")
+}
+
+model Product {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  manufacturerId String?  @db.Uuid
+  categoryId     String?  @db.Uuid
+  name           String   @db.VarChar(250)
+  genericName    String?  @db.VarChar(250)
+  strength       String?  @db.VarChar(100)
+  dosageForm     String?  @db.VarChar(100)
+  packSize       String?  @db.VarChar(100)
+  description    String?  @db.VarChar(2000)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  manufacturer   Manufacturer?         @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
+  category       ProductCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  catalogueItems DealerCatalogueItem[]
+  orderItems     OrderItem[]
+  inventoryItems InventoryItem[]
+
+  @@index([name])
+  @@index([genericName])
+  @@index([categoryId, isActive])
+  @@map("products")
+}
+
+model DealerCatalogueItem {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String   @db.Uuid
+  productId       String   @db.Uuid
+  sku             String?  @db.VarChar(100)
+  unitPriceMinor  BigInt   @db.BigInt
+  currency        String   @default("INR") @db.Char(3)
+  minimumQuantity Int      @default(1)
+  isAvailable     Boolean  @default(true)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
+
+  @@unique([organizationId, productId])
+  @@index([organizationId, isAvailable, updatedAt])
+  @@index([productId, isAvailable])
+  @@map("dealer_catalogue_items")
+}
+
+model Cart {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pharmacyOrganizationId String   @unique @db.Uuid
+  dealerOrganizationId   String   @db.Uuid
+  createdAt              DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime @updatedAt @db.Timestamptz(3)
+
+  pharmacyOrganization Organization @relation("PharmacyCart", fields: [pharmacyOrganizationId], references: [id], onDelete: Cascade)
+  dealerOrganization   Organization @relation("DealerCart", fields: [dealerOrganizationId], references: [id], onDelete: Cascade)
+  items                CartItem[]
+
+  @@index([dealerOrganizationId])
+  @@map("carts")
+}
+
+model CartItem {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cartId                String   @db.Uuid
+  dealerCatalogueItemId String   @db.Uuid
+  quantity              Int
+  createdAt             DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime @updatedAt @db.Timestamptz(3)
+
+  cart          Cart                @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  catalogueItem DealerCatalogueItem @relation(fields: [dealerCatalogueItemId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, dealerCatalogueItemId])
+  @@index([dealerCatalogueItemId])
+  @@map("cart_items")
+}
+
+model Order {
+  id                     String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderNumber            String        @unique @db.VarChar(40)
+  pharmacyOrganizationId String        @db.Uuid
+  dealerOrganizationId   String        @db.Uuid
+  placedByUserId         String        @db.Uuid
+  status                 OrderStatus   @default(PENDING)
+  paymentMethod          PaymentMethod
+  paymentStatus          PaymentStatus @default(PENDING)
+  currency               String        @default("INR") @db.Char(3)
+  subtotalMinor          BigInt        @db.BigInt
+  taxMinor               BigInt        @default(0) @db.BigInt
+  deliveryChargeMinor    BigInt        @default(0) @db.BigInt
+  totalMinor             BigInt        @db.BigInt
+  shippingAddress        Json
+  placedAt               DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime      @updatedAt @db.Timestamptz(3)
+
+  pharmacyOrganization Organization         @relation("PharmacyOrders", fields: [pharmacyOrganizationId], references: [id], onDelete: Restrict)
+  dealerOrganization   Organization         @relation("DealerOrders", fields: [dealerOrganizationId], references: [id], onDelete: Restrict)
+  placedBy             User                 @relation("OrderPlacedBy", fields: [placedByUserId], references: [id], onDelete: Restrict)
+  items                OrderItem[]
+  statusHistory        OrderStatusHistory[]
+  purchaseInvoice      Invoice?             @relation("PurchaseOrderInvoice")
+  documents            Document[]
+
+  @@index([pharmacyOrganizationId, placedAt(sort: Desc)])
+  @@index([dealerOrganizationId, placedAt(sort: Desc)])
+  @@index([status, placedAt(sort: Desc)])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                    String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId               String  @db.Uuid
+  dealerCatalogueItemId String? @db.Uuid
+  productId             String  @db.Uuid
+  productName           String  @db.VarChar(250)
+  genericName           String? @db.VarChar(250)
+  strength              String? @db.VarChar(100)
+  dosageForm            String? @db.VarChar(100)
+  packSize              String? @db.VarChar(100)
+  sku                   String? @db.VarChar(100)
+  unitPriceMinor        BigInt  @db.BigInt
+  quantity              Int
+  lineTotalMinor        BigInt  @db.BigInt
+
+  order         Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  catalogueItem DealerCatalogueItem? @relation(fields: [dealerCatalogueItemId], references: [id], onDelete: SetNull)
+  product       Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId         String       @db.Uuid
+  fromStatus      OrderStatus?
+  toStatus        OrderStatus
+  changedByUserId String?      @db.Uuid
+  note            String?      @db.VarChar(500)
+  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
+
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy User? @relation("OrderStatusChangedBy", fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@map("order_status_history")
+}
+
+model Customer {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @db.Uuid
+  displayName    String    @db.VarChar(200)
+  phoneNumber    String?   @db.VarChar(20)
+  email          String?   @db.VarChar(320)
+  archivedAt     DateTime? @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  invoices     Invoice[]
+  billDrafts   RetailBillDraft[]
+
+  @@index([organizationId, archivedAt, createdAt(sort: Desc)])
+  @@index([organizationId, displayName])
+  @@map("customers")
+}
+
+model InventoryItem {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  productId      String   @db.Uuid
+  reorderLevel   Int      @default(10)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product      Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  batches      InventoryBatch[]
+
+  @@unique([organizationId, productId])
+  @@index([organizationId, updatedAt(sort: Desc)])
+  @@map("inventory_items")
+}
+
+model InventoryBatch {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inventoryItemId    String    @db.Uuid
+  batchNumber        String    @db.VarChar(100)
+  quantityOnHand     Int
+  purchasePriceMinor BigInt?   @db.BigInt
+  currency           String    @default("INR") @db.Char(3)
+  manufacturedAt     DateTime? @db.Date
+  expiresAt          DateTime  @db.Date
+  receivedAt         DateTime  @default(now()) @db.Timestamptz(3)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
+
+  inventoryItem InventoryItem   @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  movements     StockMovement[]
+  invoiceLines  InvoiceLine[]
+
+  @@unique([inventoryItemId, batchNumber])
+  @@index([inventoryItemId, expiresAt])
+  @@index([expiresAt, quantityOnHand])
+  @@map("inventory_batches")
+}
+
+model StockMovement {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inventoryBatchId String            @db.Uuid
+  type             StockMovementType
+  quantityDelta    Int
+  balanceAfter     Int
+  reason           String?           @db.VarChar(500)
+  createdById      String            @db.Uuid
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+
+  inventoryBatch InventoryBatch @relation(fields: [inventoryBatchId], references: [id], onDelete: Cascade)
+  createdBy      User           @relation("StockMovementCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  invoiceLine    InvoiceLine?   @relation("InvoiceLineMovement")
+
+  @@index([inventoryBatchId, createdAt(sort: Desc)])
+  @@index([createdById, createdAt(sort: Desc)])
+  @@map("stock_movements")
+}
+
+model Invoice {
+  id                     String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pharmacyOrganizationId String      @db.Uuid
+  type                   InvoiceType
+  referenceNumber        String      @db.VarChar(100)
+  idempotencyKey         String?     @db.Uuid
+  counterpartyName       String      @db.VarChar(250)
+  customerId             String?     @db.Uuid
+  dealerOrganizationId   String?     @db.Uuid
+  orderId                String?     @unique @db.Uuid
+  externalIssuedAt       DateTime?   @db.Date
+  currency               String      @default("INR") @db.Char(3)
+  subtotalMinor          BigInt      @db.BigInt
+  discountMinor          BigInt      @default(0) @db.BigInt
+  taxMinor               BigInt      @db.BigInt
+  deliveryChargeMinor    BigInt      @default(0) @db.BigInt
+  totalMinor             BigInt      @db.BigInt
+  recordedById           String      @db.Uuid
+  recordedAt             DateTime    @default(now()) @db.Timestamptz(3)
+
+  pharmacyOrganization Organization          @relation("PharmacyInvoices", fields: [pharmacyOrganizationId], references: [id], onDelete: Restrict)
+  customer             Customer?             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  dealerOrganization   Organization?         @relation("DealerInvoices", fields: [dealerOrganizationId], references: [id], onDelete: Restrict)
+  order                Order?                @relation("PurchaseOrderInvoice", fields: [orderId], references: [id], onDelete: Restrict)
+  recordedBy           User                  @relation("InvoiceRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+  lines                InvoiceLine[]
+  paymentEntries       InvoicePaymentEntry[]
+  documents            Document[]
+
+  @@unique([pharmacyOrganizationId, idempotencyKey])
+  @@index([pharmacyOrganizationId, type, referenceNumber])
+  @@index([pharmacyOrganizationId, recordedAt(sort: Desc)])
+  @@index([customerId, recordedAt(sort: Desc)])
+  @@map("invoices")
+}
+
+model InvoicePaymentEntry {
+  id             String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId      String                    @db.Uuid
+  idempotencyKey String                    @db.Uuid
+  type           InvoicePaymentEntryType
+  method         InvoicePaymentEntryMethod
+  amountMinor    BigInt                    @db.BigInt
+  currency       String                    @default("INR") @db.Char(3)
+  reference      String?                   @db.VarChar(120)
+  occurredAt     DateTime                  @db.Timestamptz(3)
+  recordedById   String                    @db.Uuid
+  recordedAt     DateTime                  @default(now()) @db.Timestamptz(3)
+
+  invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  recordedBy User    @relation("InvoicePaymentEntryRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@unique([invoiceId, idempotencyKey])
+  @@index([invoiceId, recordedAt(sort: Desc)])
+  @@map("invoice_payment_entries")
+}
+
+model InvoiceLine {
+  id               String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId        String @db.Uuid
+  inventoryBatchId String @db.Uuid
+  stockMovementId  String @unique @db.Uuid
+  productName      String @db.VarChar(250)
+  batchNumber      String @db.VarChar(100)
+  quantity         Int
+  unitPriceMinor   BigInt @db.BigInt
+  subtotalMinor    BigInt @db.BigInt
+  discountMinor    BigInt @default(0) @db.BigInt
+  taxMinor         BigInt @db.BigInt
+  lineTotalMinor   BigInt @db.BigInt
+
+  invoice        Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  inventoryBatch InventoryBatch @relation(fields: [inventoryBatchId], references: [id], onDelete: Restrict)
+  stockMovement  StockMovement  @relation("InvoiceLineMovement", fields: [stockMovementId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId])
+  @@map("invoice_lines")
+}
+
+model RetailBillDraft {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  customerId     String?  @db.Uuid
+  lines          Json
+  createdById    String   @db.Uuid
+  updatedById    String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("BillDraftCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User         @relation("BillDraftUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, updatedAt(sort: Desc)])
+  @@map("retail_bill_drafts")
+}
+
+model Membership {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String           @db.Uuid
+  organizationId String           @db.Uuid
+  status         MembershipStatus @default(INVITED)
+  joinedAt       DateTime?        @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @db.Timestamptz(3)
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roles        MembershipRole[]
+  sessions     Session[]
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, status])
+  @@map("memberships")
+}
+
+model Role {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key              String            @unique @db.VarChar(100)
+  name             String            @db.VarChar(150)
+  organizationType OrganizationType?
+  isSystem         Boolean           @default(true)
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+
+  memberships MembershipRole[]
+  permissions RolePermission[]
+
+  @@index([organizationType])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key         String   @unique @db.VarChar(150)
+  description String   @db.VarChar(500)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model MembershipRole {
+  membershipId String   @db.Uuid
+  roleId       String   @db.Uuid
+  assignedAt   DateTime @default(now()) @db.Timestamptz(3)
+  assignedById String?  @db.Uuid
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@id([membershipId, roleId])
+  @@index([roleId])
+  @@map("membership_roles")
+}
+
+model RolePermission {
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model Session {
+  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tokenHash            String                @unique @db.Char(64)
+  userId               String                @db.Uuid
+  membershipId         String                @db.Uuid
+  activeOrganizationId String                @db.Uuid
+  assuranceLevel       SessionAssuranceLevel @default(OTP)
+  scope                SessionScope          @default(FULL)
+  expiresAt            DateTime              @db.Timestamptz(3)
+  lastSeenAt           DateTime              @default(now()) @db.Timestamptz(3)
+  revokedAt            DateTime?             @db.Timestamptz(3)
+  ipHash               String?               @db.Char(64)
+  userAgent            String?               @db.VarChar(500)
+  createdAt            DateTime              @default(now()) @db.Timestamptz(3)
+
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membership         Membership   @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  activeOrganization Organization @relation(fields: [activeOrganizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([activeOrganizationId, expiresAt])
+  @@map("sessions")
+}
+
+model OtpChallenge {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identifier  String     @db.VarChar(320)
+  purpose     OtpPurpose
+  status      OtpStatus  @default(PENDING)
+  codeHash    String     @db.Char(64)
+  attempts    Int        @default(0)
+  maxAttempts Int        @default(5)
+  expiresAt   DateTime   @db.Timestamptz(3)
+  consumedAt  DateTime?  @db.Timestamptz(3)
+  createdAt   DateTime   @default(now()) @db.Timestamptz(3)
+
+  partnerAttempt PartnerAuthAttempt?
+  adminAttempt   AdminAuthAttempt?
+
+  @@index([identifier, purpose, createdAt(sort: Desc)])
+  @@index([expiresAt])
+  @@map("otp_challenges")
+}
+
+model PartnerAuthAttempt {
+  challengeId      String            @id @db.Uuid
+  browserTokenHash String            @db.Char(64)
+  intent           PartnerAuthIntent
+  organizationType OrganizationType  @default(PHARMACY)
+  displayName      String?           @db.VarChar(200)
+  organizationName String?           @db.VarChar(250)
+  verifiedAt       DateTime?         @db.Timestamptz(3)
+  completedAt      DateTime?         @db.Timestamptz(3)
+  challenge        OtpChallenge      @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@map("partner_auth_attempts")
+}
+
+model AdminAuthAttempt {
+  challengeId      String       @id @db.Uuid
+  browserTokenHash String       @db.Char(64)
+  verifiedAt       DateTime?    @db.Timestamptz(3)
+  completedAt      DateTime?    @db.Timestamptz(3)
+  challenge        OtpChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@map("admin_auth_attempts")
+}
+
+model AuthRateLimit {
+  key       String   @id @db.Char(64)
+  count     Int      @default(1)
+  expiresAt DateTime @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@map("auth_rate_limits")
+}
+
+model Address {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String   @db.VarChar(200)
+  line1          String   @db.VarChar(200)
+  line2          String?  @db.VarChar(200)
+  city           String   @db.VarChar(100)
+  district       String   @db.VarChar(100)
+  state          String   @db.VarChar(100)
+  stateCode      String   @db.VarChar(10)
+  postalCode     String   @db.VarChar(20)
+  country        String   @default("IN") @db.Char(2)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pharmacyProfile PharmacyProfile?
+  dealerProfile   DealerProfile?
+
+  @@index([organizationId])
+  @@map("addresses")
+}
+
+model PharmacyProfile {
+  organizationId   String   @id @db.Uuid
+  primaryAddressId String?  @unique @db.Uuid
+  operationalEmail String?  @db.VarChar(320)
+  websiteUrl       String?  @db.VarChar(2048)
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  primaryAddress Address?     @relation(fields: [primaryAddressId], references: [id], onDelete: SetNull)
+
+  @@map("pharmacy_profiles")
+}
+
+model DealerProfile {
+  organizationId   String   @id @db.Uuid
+  primaryAddressId String?  @unique @db.Uuid
+  operationalEmail String?  @db.VarChar(320)
+  websiteUrl       String?  @db.VarChar(2048)
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  primaryAddress Address?     @relation(fields: [primaryAddressId], references: [id], onDelete: SetNull)
+
+  @@map("dealer_profiles")
+}
+
+model DealerPublicProfile {
+  organizationId String   @id @db.Uuid
+  summary        String?  @db.VarChar(1000)
+  city           String   @db.VarChar(100)
+  state          String   @db.VarChar(100)
+  serviceAreas   String[] @default([])
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([state, city])
+  @@map("dealer_public_profiles")
+}
+
+model KycRecord {
+  id                           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId               String    @db.Uuid
+  revision                     Int
+  status                       KycStatus @default(DRAFT)
+  authorizedRepresentativeName String    @db.VarChar(200)
+  authorizedRepresentativeRole String?   @db.VarChar(100)
+  declarationAcceptedAt        DateTime? @db.Timestamptz(3)
+  submittedAt                  DateTime? @db.Timestamptz(3)
+  reviewedAt                   DateTime? @db.Timestamptz(3)
+  reviewedById                 String?   @db.Uuid
+  rejectionReason              String?   @db.VarChar(1000)
+  createdById                  String    @db.Uuid
+  updatedById                  String    @db.Uuid
+  createdAt                    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt                    DateTime  @updatedAt @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User          @relation("KycCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User          @relation("KycUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  reviewedBy   User?         @relation("KycReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+  evidence     KycEvidence[]
+
+  @@unique([organizationId, revision])
+  @@index([organizationId, status, createdAt(sort: Desc)])
+  @@map("kyc_records")
+}
+
+model KycEvidence {
+  id               String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId   String              @db.Uuid
+  kycRecordId      String              @db.Uuid
+  category         KycEvidenceCategory
+  referenceNumber  String?             @db.VarChar(100)
+  expiresAt        DateTime?           @db.Date
+  objectKey        String              @unique @db.VarChar(500)
+  originalFilename String              @db.VarChar(255)
+  contentType      String              @db.VarChar(100)
+  contentLength    Int
+  checksumSha256   String              @db.Char(64)
+  status           KycEvidenceStatus   @default(PENDING)
+  rejectionReason  String?             @db.VarChar(1000)
+  uploadedById     String              @db.Uuid
+  createdAt        DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime            @updatedAt @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  kycRecord    KycRecord          @relation(fields: [kycRecordId], references: [id], onDelete: Cascade)
+  uploadedBy   User               @relation("KycEvidenceUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  reminders    DocumentReminder[]
+
+  @@index([organizationId, kycRecordId])
+  @@index([organizationId, status])
+  @@map("kyc_evidence")
+}
+
+model Document {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId     String    @db.Uuid
+  category           String    @db.VarChar(50)
+  title              String    @db.VarChar(200)
+  referenceNumber    String?   @db.VarChar(100)
+  holderName         String?   @db.VarChar(200)
+  licenceType        String?   @db.VarChar(100)
+  designation        String?   @db.VarChar(100)
+  issuedAt           DateTime? @db.Date
+  expiresAt          DateTime? @db.Date
+  bankAccountLast4   String?   @db.Char(4)
+  bankIfsc           String?   @db.VarChar(11)
+  orderId            String?   @db.Uuid
+  invoiceId          String?   @db.Uuid
+  replacesDocumentId String?   @unique @db.Uuid
+  idempotencyKey     String    @db.Uuid
+  objectKey          String    @unique @db.VarChar(500)
+  originalFilename   String    @db.VarChar(255)
+  contentType        String    @db.VarChar(100)
+  contentLength      Int
+  checksumSha256     String    @db.Char(64)
+  reviewStatus       String    @default("PENDING_REVIEW") @db.VarChar(30)
+  rejectionReason    String?   @db.VarChar(1000)
+  uploadedById       String    @db.Uuid
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  uploadedBy   User               @relation("DocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  order        Order?             @relation(fields: [orderId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  invoice      Invoice?           @relation(fields: [invoiceId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  replaces     Document?          @relation("DocumentVersions", fields: [replacesDocumentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  replacement  Document?          @relation("DocumentVersions")
+  reviews      DocumentReview[]
+  reminders    DocumentReminder[]
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, category, createdAt(sort: Desc)])
+  @@index([reviewStatus, createdAt])
+  @@index([expiresAt])
+  @@map("documents")
+}
+
+model DocumentReview {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId String   @db.Uuid
+  reviewerId String   @db.Uuid
+  status     String   @db.VarChar(30)
+  reason     String?  @db.VarChar(1000)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reviewer   User     @relation("DocumentReviewedBy", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([documentId, createdAt])
+  @@map("document_reviews")
+}
+
+model DocumentReminderPolicy {
+  id         String   @id @default("pharmacy") @db.VarChar(30)
+  thresholds Int[]    @default([90, 60, 30])
+  updatedAt  DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@map("document_reminder_policies")
+}
+
+model DocumentReminder {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId    String?      @db.Uuid
+  kycEvidenceId String?      @db.Uuid
+  thresholdDays Int
+  createdAt     DateTime     @default(now()) @db.Timestamptz(3)
+  document      Document?    @relation(fields: [documentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  kycEvidence   KycEvidence? @relation(fields: [kycEvidenceId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([documentId, thresholdDays])
+  @@unique([kycEvidenceId, thresholdDays])
+  @@map("document_reminders")
+}
+
+model AuditLog {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  occurredAt     DateTime @default(now()) @db.Timestamptz(3)
+  requestId      String   @db.VarChar(100)
+  actorUserId    String?  @db.Uuid
+  organizationId String?  @db.Uuid
+  action         String   @db.VarChar(150)
+  resourceType   String   @db.VarChar(100)
+  resourceId     String?  @db.VarChar(100)
+  outcome        String   @db.VarChar(50)
+  details        Json?
+  ipHash         String?  @db.Char(64)
+
+  actor        User?         @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, occurredAt(sort: Desc)])
+  @@index([actorUserId, occurredAt(sort: Desc)])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}
+
+model OutboxEvent {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  aggregateType String       @db.VarChar(100)
+  aggregateId   String       @db.VarChar(100)
+  eventType     String       @db.VarChar(150)
+  payload       Json
+  status        OutboxStatus @default(PENDING)
+  attempts      Int          @default(0)
+  availableAt   DateTime     @default(now()) @db.Timestamptz(3)
+  processedAt   DateTime?    @db.Timestamptz(3)
+  lastError     String?      @db.Text
+  createdAt     DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@index([status, availableAt])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox_events")
+}

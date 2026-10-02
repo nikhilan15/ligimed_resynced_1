@@ -1,0 +1,11 @@
+FROM node:24-alpine
+
+WORKDIR /workspace
+
+RUN npm init --yes && npm install prisma@7.10.0
+
+COPY prisma.config.ts ./prisma.config.ts
+COPY database/prisma/schema.prisma ./database/prisma/schema.prisma
+COPY database/migrations ./database/migrations
+
+ENTRYPOINT ["npx", "prisma"]

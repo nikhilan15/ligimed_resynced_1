@@ -1,0 +1,27 @@
+.admin-document-reason {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12px;
+  margin: 20px 0;
+}
+.admin-document-reason textarea {
+  border: 1px solid #d5e0d6;
+  border-radius: 6px;
+  padding: 12px;
+  font: inherit;
+  resize: vertical;
+}
+.document-review-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.doc-detail-card > summary {
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.doc-page {
+  width: 100%;
+}

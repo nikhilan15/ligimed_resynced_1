@@ -1,0 +1,35 @@
+name: ligimed-local
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ligimed
+      POSTGRES_PASSWORD: ligimed_local_only
+      POSTGRES_USER: ligimed
+    ports:
+      - '127.0.0.1:5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ligimed -d ligimed']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - ligimed_postgres:/var/lib/postgresql/data
+
+  redis:
+    image: redis:8-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '127.0.0.1:6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - ligimed_redis:/data
+
+volumes:
+  ligimed_postgres:
+  ligimed_redis:

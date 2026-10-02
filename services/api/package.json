@@ -1,0 +1,40 @@
+{
+  "name": "@ligimed/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "dev": "tsx watch src/server.ts",
+    "lint": "eslint .",
+    "start": "node dist/server.js",
+    "test": "vitest run --config ../../vitest.unit.config.ts",
+    "test:coverage": "vitest run --config ../../vitest.unit.config.ts --coverage",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fastify/cookie": "11.1.2",
+    "@fastify/cors": "11.3.0",
+    "@fastify/helmet": "13.1.1",
+    "@fastify/rate-limit": "11.2.0",
+    "@fastify/swagger": "9.8.1",
+    "@fastify/swagger-ui": "6.1.1",
+    "@ligimed/auth": "workspace:*",
+    "@ligimed/config": "workspace:*",
+    "@ligimed/database": "workspace:*",
+    "@ligimed/storage": "workspace:*",
+    "@ligimed/types": "workspace:*",
+    "@ligimed/validation": "workspace:*",
+    "fastify": "5.12.5",
+    "fastify-plugin": "6.0.0",
+    "jose": "6.2.12",
+    "pdfkit": "^0.20.2",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/pdfkit": "^0.17.6",
+    "tsx": "4.23.15"
+  }
+}

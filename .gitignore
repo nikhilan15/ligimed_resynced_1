@@ -1,0 +1,36 @@
+# Dependencies and build output
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+coverage/
+test-results/
+playwright-report/
+.turbo/
+generated/
+
+# Environment files (examples remain committed)
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Runtime files
+*.log
+*.pid
+logs/
+uploads/
+scratch/
+.DS_Store
+Thumbs.db
+
+# Local tool state and generated task folders
+outputs/
+work/
+
+# IDE-specific local settings
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.local/
